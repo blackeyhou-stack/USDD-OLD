@@ -1,0 +1,19 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Output data (raw CSVs / Excel, not committed)
+output/
+
+# BSC CSV export (placed manually by operator)
+input/*.csv
+
+# macOS
+.DS_Store
+
+# Experimental scripts
+fetch_bsc_rpc.py
+reverify_arb_pol.py

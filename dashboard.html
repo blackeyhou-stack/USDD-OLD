@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>USDDOLD Token Holder Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg,#1a1d27,#0f1117); border-bottom: 1px solid var(--border); padding: 22px 32px; display:flex; align-items:center; justify-content:space-between; }
+  .header-title { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+  .header-title span { color:#60a5fa; }
+  .header-sub { font-size:13px; color:var(--text-muted); margin-top:4px; }
+
+  /* Overview */
+  .overview { padding:24px 32px 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; }
+  .chain-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; cursor:pointer; transition:all .2s; position:relative; overflow:hidden; }
+  .chain-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--cc); }
+  .chain-card:hover { border-color:var(--cc); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  .chain-card.active { border-color:var(--cc); background:var(--surface2); box-shadow:0 0 0 1px var(--cc); }
+  .cc-name { font-size:12px; font-weight:700; color:var(--cc); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+  .cc-badge { font-size:10px; padding:2px 7px; border-radius:99px; background:rgba(255,255,255,.08); color:var(--text-muted); text-transform:none; letter-spacing:0; font-weight:400; }
+  .cc-supply { font-size:22px; font-weight:700; line-height:1; }
+  .cc-supply.sm { font-size:16px; }
+  .cc-supply.xs { font-size:13px; }
+  .cc-lbl { font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .cc-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .cc-metric-val { font-size:15px; font-weight:600; }
+  .cc-metric-lbl { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .coming-soon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(15,17,23,.6); backdrop-filter:blur(2px); border-radius:14px; font-size:13px; color:var(--text-muted); font-style:italic; }
+
+  /* Detail */
+  .detail { padding:0 32px 48px; }
+  .detail-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+  .detail-title { font-size:17px; font-weight:700; }
+  .detail-title .ctag { font-size:12px; padding:3px 10px; border-radius:99px; margin-left:10px; font-weight:500; vertical-align:middle; }
+  .detail-stats { display:flex; gap:24px; }
+  .ds-val { font-size:16px; font-weight:700; }
+  .ds-lbl { font-size:11px; color:var(--text-muted); margin-top:1px; text-align:right; }
+
+  /* Legend */
+  .legend { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+  .leg { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--text-muted); }
+  .leg-dot { width:9px; height:9px; border-radius:2px; }
+
+  /* Table */
+  .tw { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { background:var(--surface2); padding:10px 14px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--text-muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+  th.r, td.r { text-align:right; }
+  tbody tr { border-bottom:1px solid rgba(46,50,80,.5); transition:filter .15s; }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover td { filter:brightness(1.1); }
+  td { padding:9px 14px; vertical-align:middle; }
+
+  /* Row colors */
+  tr.rp td  { background:rgba(59,130,246,.1); }
+  tr.rm td  { background:rgba(100,116,139,.1); }
+  tr.rb td  { background:rgba(249,115,22,.12); }
+  tr.re td  { background:rgba(34,197,94,.09); }
+  tr.ro td  { background:rgba(234,179,8,.07); }
+  tr.rt td  { background:rgba(148,163,184,.14); font-weight:700; }
+
+  /* Badges */
+  .badge { display:inline-block; font-size:10px; padding:2px 8px; border-radius:99px; font-weight:600; white-space:nowrap; }
+  .bp { background:rgba(59,130,246,.2); color:#93c5fd; border:1px solid rgba(59,130,246,.35); }
+  .bm { background:rgba(100,116,139,.2); color:#94a3b8; border:1px solid rgba(100,116,139,.3); }
+  .bb { background:rgba(249,115,22,.2); color:#fdba74; border:1px solid rgba(249,115,22,.35); }
+  .be { background:rgba(34,197,94,.15); color:#86efac; border:1px solid rgba(34,197,94,.3); }
+  .bo { background:rgba(234,179,8,.15); color:#fde68a; border:1px solid rgba(234,179,8,.25); }
+  .bt { background:rgba(148,163,184,.2); color:#cbd5e1; border:1px solid rgba(148,163,184,.3); }
+
+  /* Address */
+  .alink { font-family:'SFMono-Regular',Consolas,monospace; font-size:11.5px; color:#60a5fa; text-decoration:none; }
+  .alink:hover { text-decoration:underline; color:#93c5fd; }
+  .alink .af { display:inline; }
+  .alink .as { display:none; }
+
+  .rank-n { color:var(--text-dim); font-size:12px; }
+  .nlab { font-weight:500; }
+  .he-label { color:#fb923c; font-weight:700; font-size:12px; }
+  .note-t { font-size:11px; color:var(--text-dim); }
+
+  /* Pct bar */
+  .pbar-w { display:flex; align-items:center; gap:7px; }
+  .pbar { flex:1; min-width:40px; max-width:90px; height:4px; background:rgba(255,255,255,.07); border-radius:2px; overflow:hidden; }
+  .pbar-f { height:100%; border-radius:2px; }
+  .pv { font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+  /* BSC */
+  .bsc-box { background:var(--surface); border:1px dashed var(--border); border-radius:12px; padding:36px; text-align:center; color:var(--text-muted); }
+  .bsc-box h3 { color:var(--text); font-size:16px; margin-bottom:8px; }
+  .bsc-box p { font-size:13px; line-height:1.7; }
+
+  /* Tab Bar */
+  .tab-bar { display:flex; gap:0; margin:28px 0 0; border-bottom:2px solid var(--border); }
+  .tab-btn { padding:10px 26px; background:transparent; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; color:var(--text-muted); font-size:14px; font-weight:500; cursor:pointer; transition:all .2s; letter-spacing:.3px; }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--text); border-bottom-color:#3b82f6; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  /* Summary Table */
+  .sum-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-top:20px; }
+  .sum-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .sum-table th { background:var(--surface2); color:var(--text-muted); padding:10px 14px; text-align:right; font-weight:500; font-size:11px; letter-spacing:.5px; text-transform:uppercase; border-bottom:2px solid var(--border); white-space:nowrap; }
+  .sum-table th.l { text-align:left; }
+  .sum-table td { padding:9px 14px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .sum-table td.r { text-align:right; }
+  .sum-table tr.sum-prot td { background:rgba(59,130,246,.05); }
+  .sum-table tr.sum-eoa  td { background:rgba(34,197,94,.05); }
+  .sum-table tr.sum-sub  td { background:var(--surface2); font-weight:600; border-top:1px solid var(--border); border-bottom:2px solid var(--border); }
+  .sum-chain { font-weight:700; font-size:14px; }
+  .type-badge { display:inline-block; padding:2px 9px; border-radius:4px; font-size:11px; font-weight:600; }
+  .tb-prot { background:rgba(59,130,246,.2); color:#60a5fa; }
+  .tb-eoa  { background:rgba(34,197,94,.2);  color:#4ade80; }
+  .he-val  { color:#fb923c; font-weight:600; }
+  .sum-grand td { background:rgba(59,130,246,.1); font-weight:700; font-size:13px; border-top:2px solid var(--border); }
+
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  @media (max-width:768px) {
+    .overview,.detail { padding-left:16px; padding-right:16px; }
+    .header { padding:14px 16px; }
+    .alink .af { display:none; }
+    .alink .as { display:inline; }
+    .pbar { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">USDD<span>OLD</span> Token Holder Dashboard</div>
+    <div class="header-sub">数据日期: 2026-03-23 &nbsp;·&nbsp; 5 条链 &nbsp;·&nbsp; 点击链卡片查看明细</div>
+  </div>
+</div>
+
+<div class="overview" id="overview"></div>
+<div style="text-align:right;font-size:12px;color:var(--text-muted);padding:6px 2px 0;letter-spacing:.3px">数据截止：<span id="data-date">2026-03-24</span></div>
+<div class="tab-bar">
+  <button class="tab-btn active" id="tb-detail"  onclick="showTab('detail')">链明细数据</button>
+  <button class="tab-btn"        id="tb-summary" onclick="showTab('summary')">汇总分析</button>
+</div>
+<div class="tab-pane active" id="tab-detail">
+  <div class="detail" id="detail"></div>
+</div>
+<div class="tab-pane" id="tab-summary">
+  <div id="summary"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CHAIN META
+// ═══════════════════════════════════════════════
+const META = {
+  Tron:     { cc:'#ef4444', ex:'https://tronscan.org/#/address/',     label:'TRON' },
+  Ethereum: { cc:'#6366f1', ex:'https://etherscan.io/address/',       label:'ETH'  },
+  Arbitrum: { cc:'#22d3ee', ex:'https://arbiscan.io/address/',        label:'ARB'  },
+  Polygon:  { cc:'#a855f7', ex:'https://polygonscan.com/address/',    label:'POL'  },
+  BSC:      { cc:'#f59e0b', ex:'https://bscscan.com/address/',        label:'BSC' },
+};
+
+// ═══════════════════════════════════════════════
+//  DATA  (cat: Protocol | Merged | Boss | EOA_Top10 | EOA_Others | TOTAL)
+// ═══════════════════════════════════════════════
+const DATA = {
+
+  // ─── TRON ─────────────────────────────────────
+  Tron: {
+    totalSupply: 7485815.8034, holders: 132359,
+    rows: [
+      // ── Protocol ──
+      {cat:'Protocol', rank: 1, addr:'TU1CmpmWbCrFXqLLqMaKL2Q1d34bJNYLJe', name:'BTTC: Cross-Chain Contract', amt:1657429.3925, pct:22.1409},
+      {cat:'Protocol', rank: 2, addr:'THxNCPGp8N8SJBScRU8rKPf7PvuwkGihmW', name:'JustLend DAO: Lend Safe Vault', amt:1258307.2424, pct:16.8092},
+      {cat:'Protocol', rank: 7, addr:'TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS', name:'jUSDD0LD Token', amt:395492.5622, pct:5.2832},
+      {cat:'Protocol', rank: 8, addr:'TNTfaTpkdd4AQDeqr8SGG7tgdkdjdhbP5c', name:'StableSwap2Pool', amt:348665.2639, pct:4.6577},
+      {cat:'Protocol', rank: 9, addr:'TNLcz8A9hGKbTNJ6b6C1GTyigwxURbWzkM', name:'SUN-USDDOLD-USDT Token', amt:261795.4646, pct:3.4972},
+      {cat:'Protocol', rank:10, addr:'TSJWbBJAS8HgQCMJfY5drVwYDa7JBAm6Es', name:'SUN-USDDOLD-TRX Token', amt:157468.3146, pct:2.1036},
+      {cat:'Protocol', rank:11, addr:'TMxxHG5PRVakKwNCvTWDb73gPwXvkZAhpm', name:'SUN: USDDOLD/USDT Pool Token', amt:96778.1494, pct:1.2928},
+      {cat:'Protocol', rank:12, addr:'TBSRZYLZ2pguF3EqLz86Kt9hZ4eqKEQMSY', name:'SUN: 2USD LP Pool', amt:72371.6807, pct:0.9668},
+      {cat:'Protocol', rank:13, addr:'TYP265rvPsNzYHwUWommsG4AMnGUBMEPwo', name:'SwapPool', amt:46971.1681, pct:0.6275},
+      {cat:'Protocol', rank:16, addr:'TCkNadwxyik1D66qCGmavuneowDRXPgdkL', name:'SUN: USDD-USDT LP V2 Pool', amt:24309.3162, pct:0.3247},
+      {cat:'Protocol', rank:17, addr:'TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu', name:'SUN: USDD-USDT V2 Pool', amt:21296.0132, pct:0.2845},
+      {cat:'Protocol', rank:19, addr:'TCpXumigVHd2iuSkotNgkSduKqksUfpcvc', name:'SUN: USDD-TRX LP Pool', amt:18073.5473, pct:0.2414},
+      {cat:'Protocol', rank:24, addr:'TV2c19cN3HuzvVQp6Y74pKd8BmkE9NdpvL', name:'UsdPool_V3', amt:11759.9826, pct:0.1571},
+      {cat:'Protocol', rank:25, addr:'TAUGwRhmCP518Bm4VBqv7hDun9fg8kYjC4', name:'SUN: StableSwap 2Pool (Old)', amt:10727.7412, pct:0.1433},
+      {cat:'Protocol', rank:30, addr:'TFpg63byqDwniXnyxVYpSzBfWGBwZExM9J', name:'superGAUGE', amt:8121.0338, pct:0.1085},
+      {cat:'Protocol', rank:31, addr:'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', name:'USDT Token', amt:8053.2423, pct:0.1076},
+      {cat:'Protocol', rank:42, addr:'TKVsYedAY23WFchBniU7kcx1ybJnmRSbGt', name:'SUN: StableSwap 3Pool', amt:5871.2480, pct:0.0784},
+      {cat:'Protocol', rank:45, addr:'TSqgrfo2wBQVRV6UJGyGew38bMxKFabncU', name:'TaskonFundProxy', amt:5374.2779, pct:0.0718},
+      // ── H ──
+      {cat:'Boss', rank: 3, addr:'TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N', amt:896072.1930, pct:11.9703},
+      {cat:'Boss', rank: 4, addr:'TPyjyZfsYaXStgz2NmAraF1uZcMtkgNan5', amt:605036.1517, pct:8.0824},
+      // ── EOA ──
+      {cat:'EOA_Top10', rank: 5, addr:'TUdFK8RDgoLqfrnyB9wcgNpicvpJJTyrkb', name:'nan', amt:445774.3696, pct:5.9549},
+      {cat:'EOA_Top10', rank: 6, addr:'TYCEpUm1V4vVfjQrLEpeoKwQCQzJBKE2E6', name:'nan', amt:440250.0000, pct:5.8811},
+      {cat:'EOA_Top10', rank:14, addr:'TGuLLThBhBDobg1ynJrBuZ4bUuKz7gBnH5', name:'nan', amt:37503.0717, pct:0.5010},
+      {cat:'EOA_Top10', rank:15, addr:'TQ1NbJbjhLJGxfiYpAagWCA9V6hSn1i5W7', name:'nan', amt:24431.6934, pct:0.3264},
+      {cat:'EOA_Top10', rank:18, addr:'TYUxUDtX2DDe5bChSDUwumquwnEcgpaHxF', name:'nan', amt:20573.9182, pct:0.2748},
+      {cat:'EOA_Top10', rank:20, addr:'TNni72dCwgNYv9HbU3VkF5Lrd3764BAEQ4', name:'nan', amt:16350.2432, pct:0.2184},
+      {cat:'EOA_Top10', rank:21, addr:'TWH5YxxYWupWRDf3E9pSNpjW3WqrpmKdgY', name:'nan', amt:15814.8802, pct:0.2113},
+      {cat:'EOA_Top10', rank:22, addr:'TXV8sJppiNftAZRRu8EPZri5i6QbLNSPjp', name:'nan', amt:13787.3844, pct:0.1842},
+      {cat:'EOA_Top10', rank:23, addr:'TBhbX5S51L1C34wBExL9efV5YfTE5NAFi1', name:'nan', amt:12565.2282, pct:0.1679},
+      {cat:'EOA_Top10', rank:26, addr:'TWoQFuQjyMujzVyXdEdkk3BchFZLYZuphh', name:'nan', amt:9931.6959, pct:0.1327},
+      {cat:'EOA_Top10', rank:27, addr:'THEVkdUfRLGBuzm6hmR4DiqpGodFCZehV3', name:'nan', amt:9837.5587, pct:0.1314},
+      {cat:'EOA_Top10', rank:28, addr:'TUrRvqxU6J8QvECoyavYPMmHyGRZ9G4DuD', name:'nan', amt:9790.3170, pct:0.1308},
+      {cat:'EOA_Top10', rank:29, addr:'TLLNdQRxX84wvKwio7voFmEzWAXnGYnXm6', name:'nan', amt:8369.1611, pct:0.1118},
+      {cat:'EOA_Top10', rank:32, addr:'TP3BbcyF8D9X3xej2ojn1ZthxoC4VL3aGS', name:'nan', amt:7720.6322, pct:0.1031},
+      {cat:'EOA_Top10', rank:33, addr:'TJreMFSQ7xtohWjYeMCWubWP5NepySsyoR', name:'nan', amt:7370.5379, pct:0.0985},
+      {cat:'EOA_Top10', rank:34, addr:'TVv1TicFiiVy2XLhxxWXzoZBs43hqcEAM7', name:'nan', amt:6900.0000, pct:0.0922},
+      {cat:'EOA_Top10', rank:35, addr:'TVMbWf384CAtzJwge7n7EnzHTfDiwBZ7yZ', name:'nan', amt:6796.8846, pct:0.0908},
+      {cat:'EOA_Top10', rank:36, addr:'TKKMmQbTAtcakLTRpToLcNuB2ELpeThQ4F', name:'nan', amt:6635.0372, pct:0.0886},
+      {cat:'EOA_Top10', rank:37, addr:'TGxFCfnDPcdk7uhvMp25wknMXANzR7PsFq', name:'nan', amt:6427.0871, pct:0.0859},
+      {cat:'EOA_Top10', rank:38, addr:'TLwnx7PSfN97ZKKmog6zo394Z6bgHSkgmg', name:'nan', amt:6269.7433, pct:0.0838},
+      {cat:'EOA_Top10', rank:39, addr:'TVkURvm5nHpaykSsbS5d935GhJS4uGAzyh', name:'nan', amt:6206.2544, pct:0.0829},
+      {cat:'EOA_Top10', rank:40, addr:'TCh752htm8bPtqeU9nrhuwEJEqS9h73VP4', name:'nan', amt:6000.0000, pct:0.0802},
+      {cat:'EOA_Top10', rank:41, addr:'TTocdauBmQx7gkrZVVvqGAbMYvwqRAhgWe', name:'nan', amt:5950.6418, pct:0.0795},
+      {cat:'EOA_Top10', rank:43, addr:'TNCUWFnWRg1YHzFuhVKpsnm4C78JjXYBFP', name:'nan', amt:5819.1827, pct:0.0777},
+      {cat:'EOA_Top10', rank:44, addr:'TLSTbjxPXK2spMULB4buBM1bp1ZFXUwkmh', name:'nan', amt:5606.1134, pct:0.0749},
+      {cat:'EOA_Top10', rank:46, addr:'TWwqRM7snZV3TNcunKN5Yy1LeMEQGsbGyK', name:'nan', amt:5067.6263, pct:0.0677},
+    ]
+  },
+
+  // ─── ETHEREUM ─────────────────────────────────
+  Ethereum: {
+    totalSupply: 124146228.2426, holders: 1211,
+    rows: [
+      // ── Protocol ──
+      {cat:'Protocol', rank: 1, addr:'0x9277a463A508F45115FdEaf22FfeDA1B16352433', name:'BTTC: Cross-Chain Contract', amt:123003436.2909, pct:99.0795},
+      {cat:'Protocol', rank: 2, addr:'0xF02e86D9E0eFd57aD034FaF52201B79917fE0713', name:'nan', amt:535598.0969, pct:0.4314},
+      {cat:'Protocol', rank: 3, addr:'0xa3A7B6F88361F48403514059F1F16C8E78d60EeC', name:'Arbitrum One: L1 ERC20 Gateway', amt:169709.6433, pct:0.1367},
+      {cat:'Protocol', rank: 4, addr:'0x692953e758c3669290cb1677180c64183cEe374e', name:'Stargate Finance: S*USDD Token', amt:134043.0303, pct:0.1080},
+      {cat:'Protocol', rank: 5, addr:'0x2bc477c7C00511eC8a2EA667dD8210AF9FF15e1D', name:'Uniswap V3: USDD-USDT', amt:107852.0664, pct:0.0869},
+      {cat:'Protocol', rank: 9, addr:'0x378Ba9B73309bE80BF4C2c027aAD799766a7ED5A', name:'Votium: Multi Merkle Stash', amt:11027.7038, pct:0.0089},
+      {cat:'Protocol', rank:10, addr:'0x40ec5B33f54e0E8A33A975908C5BA1c14e5BbbDf', name:'Polygon (Matic): ERC20 Bridge', amt:7968.1966, pct:0.0064},
+      {cat:'Protocol', rank:11, addr:'0xe6b5CC1B4b47305c58392CE3D359B10282FC36Ea', name:'Curve: USDD3CRV3CRV-f Pool', amt:5612.1375, pct:0.0045},
+      {cat:'Protocol', rank:12, addr:'0xD11C6816a2A550E330A9d1049d9C545a39974fc2', name:'nan', amt:5130.4625, pct:0.0041},
+      {cat:'Protocol', rank:24, addr:'0x4858821DA3a75C001A895072305B774aF7a494d9', name:'nan', amt:944.4006, pct:0.0008},
+      {cat:'Protocol', rank:26, addr:'0xDf86ac0bbD2a5926db864E98CA060f5C176E550F', name:'nan', amt:846.4739, pct:0.0007},
+      {cat:'Protocol', rank:31, addr:'0xd5d3efC90fFB38987005FdeA303B68306aA5C624', name:'Curve.fi USDD3CRV3CRV-f Gauge Deposit', amt:673.5937, pct:0.0005},
+      {cat:'Protocol', rank:37, addr:'0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1', name:'L1ChugSplashProxy', amt:496.6027, pct:0.0004},
+      // ── EOA ──
+      {cat:'EOA_Top10', rank: 6, addr:'0xee5B5B923fFcE93A870B3104b7CA09c3db80047A', name:'Bybit: Hot Wallet 4', amt:62549.6194, pct:0.0504},
+      {cat:'EOA_Top10', rank: 7, addr:'0x549d835356d92983AbB76E4cae639f7857963425', name:'nan', amt:28497.7221, pct:0.0230},
+      {cat:'EOA_Top10', rank: 8, addr:'0x628b2cc8535Bf6BFc26c1679C38313c9062cc787', name:'nan', amt:15001.6555, pct:0.0121},
+      {cat:'EOA_Top10', rank:13, addr:'0x13eD3eB5a9ad0D42C415064EACaeF5Ebdc9D97fC', name:'nan', amt:4914.7375, pct:0.0040},
+      {cat:'EOA_Top10', rank:14, addr:'0x31743a08D895d01a49dB98b8F9c8469D92f63745', name:'nan', amt:4460.4379, pct:0.0036},
+      {cat:'EOA_Top10', rank:15, addr:'0xE30448D564A3c17953cB540Cc147Be774F91FFd1', name:'nan', amt:3571.0339, pct:0.0029},
+      {cat:'EOA_Top10', rank:16, addr:'0x272b065A43EF59EA470fbfD9be76AD1b43aAB651', name:'nan', amt:3393.3662, pct:0.0027},
+      {cat:'EOA_Top10', rank:17, addr:'0x80596bf6a3467502557cE466933e8c4Cba2E0b0b', name:'nan', amt:2854.5859, pct:0.0023},
+      {cat:'EOA_Top10', rank:18, addr:'0x48D032A8De4dA818a6142362358C34dA64AEA2d0', name:'nan', amt:1950.4252, pct:0.0016},
+      {cat:'EOA_Top10', rank:19, addr:'0x93B1118154ab71eF5A69eD1F23a289D3bed9495b', name:'nan', amt:1401.1496, pct:0.0011},
+    ]
+  },
+
+  // ─── ARBITRUM ─────────────────────────────────
+  Arbitrum: {
+    totalSupply: 169706.6390, holders: 1368,
+    rows: [
+      // ── Protocol ──
+      {cat:'Protocol', rank: 1, addr:'0x5151c83ad4E1C8C4eA0D1eaF91c246a8C6DAB2A4', name:'Arbitrum Bridge (Lock)', amt:109590.8599, pct:64.5766},
+      // ── H ──
+      {cat:'Boss', rank: 2, addr:'0x3DdfA8eC3052539b6C9549F12cEA2C295cfF5296', amt:58568.3730, pct:34.5115},
+      // ── EOA ──
+      {cat:'EOA_Top10', rank: 3, addr:'0x95B6491f8B930f8b277296a5137413f09605FE77', name:'nan', amt:410.8584, pct:0.2421},
+      {cat:'EOA_Top10', rank: 4, addr:'0xC5E9F816994D3Eb91B556bc8D0A0cBe44a674909', name:'nan', amt:130.5896, pct:0.0770},
+      {cat:'EOA_Top10', rank: 5, addr:'0x3476F036ab6B2bF737A053a66f910C76Ab07ae27', name:'nan', amt:60.6911, pct:0.0358},
+      {cat:'EOA_Top10', rank: 7, addr:'0x9eCD0383Cbc487E1b1a1CEf4e2bC80d43A2A21A3', name:'nan', amt:57.2482, pct:0.0337},
+      {cat:'EOA_Top10', rank: 8, addr:'0x0425Dc01A3d06b6b994eA6C96512dfd59e2664c7', name:'nan', amt:49.6489, pct:0.0293},
+      {cat:'EOA_Top10', rank: 9, addr:'0x4A47a71e221eA1730A09D20E77560E251101415A', name:'nan', amt:48.7929, pct:0.0288},
+      {cat:'EOA_Top10', rank:10, addr:'0xEeBe760354F5dcBa195EDe0a3B93901441D0968F', name:'nan', amt:46.7805, pct:0.0276},
+      {cat:'EOA_Top10', rank:11, addr:'0xb33636Cc3EB5519F2d71351Cdf247EbCD1Be5962', name:'nan', amt:45.2906, pct:0.0267},
+      {cat:'EOA_Top10', rank:12, addr:'0x24bc57C95977de7EaFD622b4Cc7786F3a9c9a4C5', name:'nan', amt:39.0204, pct:0.0230},
+      {cat:'EOA_Top10', rank:13, addr:'0xf8fF9d3f7A78d32A612787086095518951FF6973', name:'nan', amt:38.0000, pct:0.0224},
+    ]
+  },
+
+  // ─── POLYGON ──────────────────────────────────
+  Polygon: {
+    totalSupply: 7968.1902, holders: 375,
+    rows: [
+      // ── Protocol ──
+      {cat:'Protocol', rank: 1, addr:'0x7eE7d075d2A74a2A05E8837A6A4727faB5D23c5B', name:'Uniswap V2', amt:7447.6837, pct:93.4677},
+      // ── EOA ──
+      {cat:'EOA_Top10', rank: 5, addr:'0x364a1f78fDEd4a488b91516ed6C8cCB010b7FF34', name:'nan', amt:2.3004, pct:0.0289},
+      {cat:'EOA_Top10', rank: 8, addr:'0x9fc3D33d1939fFa3f3Bd4f7C4D5f989931807fbB', name:'nan', amt:2.0007, pct:0.0251},
+      {cat:'EOA_Top10', rank: 9, addr:'0x2EEE8fAE162564C9A03691FE3ac18154ba4E3fB6', name:'nan', amt:1.2079, pct:0.0152},
+      {cat:'EOA_Top10', rank:10, addr:'0x5881052B452833B6CE041FB7bd4DB0430E596B57', name:'nan', amt:1.0000, pct:0.0125},
+      {cat:'EOA_Top10', rank:11, addr:'0xe5fd0fA893F4CB6C7d5D988424FD9e94279A82F5', name:'nan', amt:0.5100, pct:0.0064},
+      {cat:'EOA_Top10', rank:13, addr:'0x3Dd591D1B369a879c292dfD2e3457fba72CffA72', name:'nan', amt:0.4443, pct:0.0056},
+      {cat:'EOA_Top10', rank:14, addr:'0xCAeff56B73aE19179A123Cef2d82D3F91EdfA6c4', name:'nan', amt:0.3927, pct:0.0049},
+      {cat:'EOA_Top10', rank:16, addr:'0x7571a36Eb98bD650140C841c5B2491dE72116E7a', name:'nan', amt:0.1714, pct:0.0022},
+      {cat:'EOA_Top10', rank:17, addr:'0xAA9c9F1cd814AD4284eF1F6C30500563f27339ac', name:'nan', amt:0.1524, pct:0.0019},
+      {cat:'EOA_Top10', rank:18, addr:'0xF800753760384943B55445e5A6d75341893f67ca', name:'nan', amt:0.1081, pct:0.0014},
+    ]
+  },
+
+  // ─── BSC ──────────────────────────────────────
+  BSC: {
+    totalSupply: 110581328.9238, holders: 0,
+    rows: [
+      // ── Protocol ──
+      {cat:'Protocol', rank: 1, addr:'0xca266910d92a313e5f9eb1affc462bcbb7d9c4a9', name:'Bridge Contract (Lock)', amt:110077407.9632, pct:99.5443},
+      {cat:'Protocol', rank: 2, addr:'0x54c182a3c14590b3b8211e4fb831c0f0b572c825', name:'PancakeSwap V2: GYRO-USDD', amt:229458.3298, pct:0.2075},
+      {cat:'Protocol', rank: 3, addr:'0x4e145a589e4c03cbe3d28520e4bf3089834289df', name:'Stargate Finance: S*USDD Token', amt:166155.0086, pct:0.1503},
+      {cat:'Protocol', rank: 4, addr:'0xf1da185cce5bed1bebbb3007ef738ea4224025f7', name:'Venus: vUSDD_Tron Token', amt:20118.6511, pct:0.0182},
+      {cat:'Protocol', rank: 5, addr:'0x9f2fd23bd0a5e08c5f2b9dd6cf9c96bfb5fa515c', name:'Venus: vUSDD_GameFi Token', amt:11372.4926, pct:0.0103},
+      {cat:'Protocol', rank: 6, addr:'0xc3a45ad8812189cab659ad99e64b1376f6acd035', name:'Venus: vUSDD_Stablecoins Token', amt:10005.7533, pct:0.0090},
+      {cat:'Protocol', rank: 7, addr:'0xa615467cae6b9e0bb98bc04b4411d9296fd1dfa0', name:'Venus: vUSDD_DeFi Token', amt:9928.6862, pct:0.0090},
+      {cat:'Protocol', rank:21, addr:'0x2762409baa1804d94d8c0bcff8400b78bf915d5b', name:'LayerZero: Aptos Token Bridge', amt:687.3256, pct:0.0006},
+      {cat:'Protocol', rank:22, addr:'0xd17479997f34dd9156deef8f95a52d81d265be9c', name:'Decentralized USD: Old USDD Token', amt:657.5201, pct:0.0006},
+      {cat:'Protocol', rank:24, addr:'0xf322942f644a996a617bd29c16bd7d231d9f35e9', name:'Venus: Treasury', amt:532.0317, pct:0.0005},
+      {cat:'Protocol', rank:28, addr:'0xcf799767d366d789e8b446981c2d578e241fa25c', name:'Multichain: anyUSDD Token', amt:433.1310, pct:0.0004},
+      {cat:'Protocol', rank:33, addr:'0xdf31a28d68a2ab381d42b380649ead7ae2a76e42', name:'Venus: Risk Fund', amt:392.4639, pct:0.0004},
+      {cat:'Protocol', rank:37, addr:'0x0051ef9259c7ec0644a80e866ab748a2f30841b3', name:'Bybit 14', amt:377.2586, pct:0.0003},
+      // ── EOA ──
+      {cat:'EOA_Top10', rank: 8, addr:'0xc2cf01f785c587645440ccd488b188945c9505e7', amt:4406.8401, pct:0.0040},
+      {cat:'EOA_Top10', rank: 9, addr:'0x35ac13efaab970f32269b61e4704f4377ce7a0ad', amt:3118.1806, pct:0.0028},
+      {cat:'EOA_Top10', rank:10, addr:'0x7bb376c8833e07cbd8ccd5c6d263d2e9925fe2af', amt:2579.7707, pct:0.0023},
+      {cat:'EOA_Top10', rank:11, addr:'0xc052fcfd920e1e4f29a259ba8094981f78770da5', amt:2346.4529, pct:0.0021},
+      {cat:'EOA_Top10', rank:12, addr:'0x231db3a26cb137653621d3e405eeefe18f723aae', amt:2125.0000, pct:0.0019},
+      {cat:'EOA_Top10', rank:13, addr:'0xe6fdc9398208fdb898a1bf48e375cfd7619d324b', amt:2065.0000, pct:0.0019},
+      {cat:'EOA_Top10', rank:14, addr:'0x6310fb42f5c0ce537f611d79b2b9e6e59de6964f', amt:1882.8838, pct:0.0017},
+      {cat:'EOA_Top10', rank:15, addr:'0xb7d9b83c7dc3c7fab2d0159f8b3fa7c4fb081741', amt:1823.8220, pct:0.0016},
+      {cat:'EOA_Top10', rank:16, addr:'0x2528a12215f6b907c8bd7c59eafddc88847ac898', amt:1061.7398, pct:0.0010},
+      {cat:'EOA_Top10', rank:17, addr:'0x822d138ea0bc7f08dcb91ee671d710fbb482d7b6', amt:1032.3297, pct:0.0009},
+    ]
+  },
+};
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+let active = 'Tron';
+
+function N(n, d=2) {
+  if (n == null) return '—';
+  return n.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function NI(n) { return n == null ? '—' : n.toLocaleString('en-US'); }
+
+function short(a) {
+  if (!a || a.length<=14) return a;
+  return a.slice(0,8)+'…'+a.slice(-4);
+}
+
+const ROW_CLASS = {Protocol:'rp', Merged:'rm', Boss:'rb', EOA_Top10:'re', EOA_Others:'ro', TOTAL:'rt'};
+const BADGE_CLASS = {Protocol:'bp', Merged:'bm', Boss:'bb', EOA_Top10:'be', EOA_Others:'bo', TOTAL:'bt'};
+const BADGE_LABEL = {Protocol:'Protocol', Merged:'合并', Boss:'H', EOA_Top10:'EOA', EOA_Others:'其他', TOTAL:'TOTAL'};
+
+function badge(cat) { return `<span class="badge ${BADGE_CLASS[cat]}">${BADGE_LABEL[cat]}</span>`; }
+
+// ═══════════════════════════════════════════════
+//  OVERVIEW
+// ═══════════════════════════════════════════════
+function renderOverview() {
+  document.getElementById('overview').innerHTML = Object.entries(META).map(([name, m]) => {
+    const d = DATA[name];
+    const protAmt = (d.rows||[]).filter(r=>r.cat==='Protocol').reduce((s,r)=>s+r.amt,0);
+    const bossAmt = (d.rows||[]).filter(r=>r.cat==='Boss').reduce((s,r)=>s+r.amt,0);
+    const protPct = d.totalSupply ? (protAmt/d.totalSupply*100) : null;
+    const bossPct = d.totalSupply ? (bossAmt/d.totalSupply*100) : null;
+    const isActive = name===active;
+    const supplyStr = !d.totalSupply ? '—' : N(d.totalSupply, 2);
+    return `
+    <div class="chain-card ${isActive?'active':''}" style="--cc:${m.cc}" onclick="pick('${name}')">
+      <div class="cc-name">${m.label}${m.comingSoon?'<span class="cc-badge">待补充</span>':''}</div>
+      <div class="cc-supply ${d.totalSupply>=1e8?'xs':d.totalSupply>=1e6?'sm':''}">${supplyStr}</div>
+      <div class="cc-lbl">Total Supply (USDDOLD)</div>
+      <div class="cc-grid">
+        <div><div class="cc-metric-val">${NI(d.holders)}</div><div class="cc-metric-lbl">Holders</div></div>
+        <div><div class="cc-metric-val">${protPct!=null?protPct.toFixed(1)+'%':'—'}</div><div class="cc-metric-lbl">Protocol %</div></div>
+        <div><div class="cc-metric-val">${bossPct!=null&&bossPct>0?bossPct.toFixed(2)+'%':'—'}</div><div class="cc-metric-lbl">H %</div></div>
+        <div><div class="cc-metric-val">${NI(d.rows.filter(r=>r.cat==='Boss').length)||'—'}</div><div class="cc-metric-lbl">H 地址</div></div>
+      </div>
+      ${m.comingSoon?'<div class="coming-soon">截图数据补充中...</div>':''}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  DETAIL
+// ═══════════════════════════════════════════════
+function renderDetail(name) {
+  const el = document.getElementById('detail');
+  const m = META[name]; const d = DATA[name];
+
+  if (d.comingSoon) {
+    el.innerHTML = `
+      <div class="detail-head">
+        <div class="detail-title">链明细 <span class="ctag" style="background:${m.cc}22;color:${m.cc};border:1px solid ${m.cc}44">${m.label}</span></div>
+      </div>
+      <div class="bsc-box">
+        <div style="font-size:32px;margin-bottom:10px">🔜</div>
+        <h3>BSC 数据待补充</h3>
+        <p>BSC 链暂无免费公开 API，等待人工截图数据录入后将显示在此处。</p>
+      </div>`;
+    return;
+  }
+
+  // Shown rows: Protocol / Boss / EOA_Top10 only
+  const shownRows = d.rows.filter(r => r.cat === 'Protocol' || r.cat === 'Boss' || r.cat === 'EOA_Top10');
+  const shownSum  = shownRows.reduce((s, r) => s + r.amt, 0);
+  const otherAmt  = d.totalSupply - shownSum;
+  const otherPct  = d.totalSupply ? otherAmt / d.totalSupply * 100 : 0;
+
+  const maxAmt = Math.max(...shownRows.map(r => r.amt));
+
+  function renderRow(row) {
+    // address cell
+    const addrCell = row.addr
+      ? `<a class="alink" href="${m.ex}${row.addr}" target="_blank" rel="noopener">
+           <span class="af">${row.addr}</span><span class="as">${short(row.addr)}</span>
+         </a>`
+      : `<span class="note-t">—</span>`;
+
+    // name cell
+    let nameCell;
+    if (row.cat === 'Boss') {
+      nameCell = `<span class="he-label">⭐ H</span>`;
+    } else if (row.name) {
+      nameCell = `<span class="nlab">${row.name}</span>`;
+    } else {
+      nameCell = `<span class="note-t">—</span>`;
+    }
+
+    // pct bar
+    const bw = maxAmt > 0 ? Math.min(100, row.amt / maxAmt * 100) : 0;
+    const barColor = row.cat === 'Boss' ? '#fb923c' : m.cc;
+    const pctCell = `
+      <div class="pbar-w">
+        <div class="pbar"><div class="pbar-f" style="width:${bw}%;background:${barColor}"></div></div>
+        <span class="pv">${row.pct.toFixed(row.pct >= 0.001 ? 4 : 6)}%</span>
+      </div>`;
+
+    const noteText = (row.note && row.cat !== 'EOA_Top10' && row.cat !== 'Boss')
+      ? `<span class="note-t">${row.note}</span>` : '';
+
+    return `
+      <tr class="${ROW_CLASS[row.cat]}">
+        <td>${badge(row.cat)}</td>
+        <td class="r rank-n">${row.rank != null ? '#' + row.rank : '—'}</td>
+        <td>${addrCell}</td>
+        <td>${nameCell}</td>
+        <td class="r">${N(row.amt)}</td>
+        <td class="r">${pctCell}</td>
+        <td>${noteText}</td>
+      </tr>`;
+  }
+
+  const rows =
+    shownRows.map(renderRow).join('') +
+    // ── 其他（合并）: 合约 + 未展示地址 ──
+    `<tr class="ro">
+      <td>${badge('EOA_Others')}</td>
+      <td class="r rank-n">—</td>
+      <td><span class="note-t">—</span></td>
+      <td><span class="nlab">其他（合并）</span></td>
+      <td class="r">${N(otherAmt)}</td>
+      <td class="r">
+        <div class="pbar-w">
+          <div class="pbar"><div class="pbar-f" style="width:0%;background:${m.cc}"></div></div>
+          <span class="pv">${otherPct.toFixed(otherPct >= 0.001 ? 4 : 6)}%</span>
+        </div>
+      </td>
+      <td><span class="note-t">合约 + 未展示地址合并</span></td>
+    </tr>` +
+    // ── CHAIN TOTAL = TotalSupply ──
+    `<tr class="rt">
+      <td>${badge('TOTAL')}</td>
+      <td class="r">—</td>
+      <td colspan="2"><strong>CHAIN TOTAL</strong></td>
+      <td class="r"><strong>${N(d.totalSupply)}</strong></td>
+      <td class="r"><strong>100.0000%</strong></td>
+      <td></td>
+    </tr>`;
+
+  const bossCount = shownRows.filter(r => r.cat === 'Boss').length;
+
+  el.innerHTML = `
+    <div class="detail-head">
+      <div class="detail-title">
+        链明细数据
+        <span class="ctag" style="background:${m.cc}22;color:${m.cc};border:1px solid ${m.cc}44">${m.label} · ${name}</span>
+        ${bossCount>0?`<span class="ctag" style="background:rgba(249,115,22,.15);color:#fb923c;border:1px solid rgba(249,115,22,.35)">⭐ ${bossCount} H 地址</span>`:''}
+      </div>
+      <div class="detail-stats">
+        <div><div class="ds-val">${N(d.totalSupply)}</div><div class="ds-lbl">Total Supply</div></div>
+        <div><div class="ds-val">${NI(d.holders)}</div><div class="ds-lbl">Total Holders</div></div>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>Protocol 合约</div>
+      <div class="leg"><div class="leg-dot" style="background:#f97316"></div>H</div>
+      <div class="leg"><div class="leg-dot" style="background:#22c55e"></div>EOA 个人</div>
+      <div class="leg"><div class="leg-dot" style="background:#eab308"></div>其他（合并）</div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>类型</th><th class="r">排名</th><th>地址</th>
+            <th>名称 / 标签</th><th class="r">USDDOLD 数量</th>
+            <th class="r">占比</th><th>备注</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════
+function showTab(t) {
+  ['detail','summary'].forEach(id => {
+    document.getElementById('tab-'+id).classList.toggle('active', id===t);
+    document.getElementById('tb-'+id).classList.toggle('active', id===t);
+  });
+  if (t==='summary') document.getElementById('summary').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ═══════════════════════════════════════════════
+//  SUMMARY
+// ═══════════════════════════════════════════════
+// H 数值固定不变，总量与社区按最新数据计算
+// ETH/BSC TotalSupply 已扣除预铸桥接储备
+// H 数值固定不变，总量与社区按最新数据计算
+// ETH/BSC TotalSupply 已扣除预铸桥接储备
+// H 数值固定不变，总量与社区按最新数据计算
+// ETH/BSC TotalSupply 已扣除预铸桥接储备
+// H 数值固定不变，总量与社区按最新数据计算
+// ETH/BSC TotalSupply 已扣除预铸桥接储备
+// H 数值固定不变，总量与社区按最新数据计算
+// ETH/BSC TotalSupply 已扣除预铸桥接储备
+// H 数值固定不变，总量与社区按最新数据计算
+// ETH/BSC TotalSupply 已扣除预铸桥接储备
+const SUMMARY = [
+  { chain:'Tron', cc:'#ef4444', supply:7485815.8, holders:132359,
+    prot:{ total:5909973.99, he:0, comm:5909973.99 },
+    eoa: { total:1575841.82, he:1501108.34,  comm:74733.48 } },
+  { chain:'Ethereum', cc:'#6366f1', supply:1142791.95, holders:1211,
+    prot:{ total:979902.41, he:255917.7554, comm:723984.65 },
+    eoa: { total:162889.54, he:0,  comm:162889.54 } },
+  { chain:'BSC', cc:'#f59e0b', supply:503920.96, holders:5704,
+    prot:{ total:450118.65, he:201522.0552, comm:248596.6 },
+    eoa: { total:53802.31, he:0,  comm:53802.31 } },
+  { chain:'Polygon', cc:'#a855f7', supply:7968.19, holders:375,
+    prot:{ total:7519.7, he:7447.025, comm:72.68 },
+    eoa: { total:448.49, he:0,  comm:448.49 } },
+  { chain:'Arbitrum', cc:'#22d3ee', supply:169706.64, holders:1368,
+    prot:{ total:168278.98, he:109463.04, comm:58815.94 },
+    eoa: { total:1427.66, he:58568.37,  comm:-57140.71 } },
+];
+
+function renderSummary() {
+  const el = document.getElementById('summary');
+  const grandSupply  = SUMMARY.reduce((s,r)=>s+r.supply,0);
+  const grandHolders = SUMMARY.reduce((s,r)=>s+r.holders,0);
+  const grandHE      = SUMMARY.reduce((s,r)=>s+r.prot.he+r.eoa.he,0);
+  const grandComm    = SUMMARY.reduce((s,r)=>s+r.prot.comm+r.eoa.comm,0);
+  const grandTotal   = SUMMARY.reduce((s,r)=>s+r.prot.total+r.eoa.total,0);
+
+  const rows = SUMMARY.map(r => {
+    const chainTotal = r.prot.total + r.eoa.total;
+    const chainHE    = r.prot.he + r.eoa.he;
+    const chainComm  = r.prot.comm + r.eoa.comm;
+    return `
+      <tr class="sum-prot">
+        <td rowspan="3" class="sum-chain"><span style="color:${r.cc}">${r.chain}</span></td>
+        <td rowspan="3" class="r">${N(r.supply)}</td>
+        <td rowspan="3" class="r">${NI(r.holders)}</td>
+        <td><span class="type-badge tb-prot">协议</span></td>
+        <td class="r">${N(r.prot.total)}</td>
+        <td class="r">${r.prot.he>0?`<span class="he-val">${N(r.prot.he)}</span>`:'—'}</td>
+        <td class="r">${N(r.prot.comm)}</td>
+      </tr>
+      <tr class="sum-eoa">
+        <td><span class="type-badge tb-eoa">EOA</span></td>
+        <td class="r">${N(r.eoa.total)}</td>
+        <td class="r">${r.eoa.he>0?`<span class="he-val">${N(r.eoa.he)}</span>`:'—'}</td>
+        <td class="r">${N(r.eoa.comm)}</td>
+      </tr>
+      <tr class="sum-sub">
+        <td style="color:var(--text-muted);font-size:11px">小计</td>
+        <td class="r">${N(chainTotal)}</td>
+        <td class="r he-val">${N(chainHE)}</td>
+        <td class="r">${N(chainComm)}</td>
+      </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="sum-wrap">
+      <table class="sum-table">
+        <thead>
+          <tr>
+            <th class="l">链</th>
+            <th class="l">Total Supply</th>
+            <th class="l">Holders</th>
+            <th class="l">类型</th>
+            <th>总量</th>
+            <th>H</th>
+            <th>社区</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          <tr class="sum-grand">
+            <td colspan="4"><strong>全链合计</strong></td>
+            <td class="r">${N(grandTotal)}</td>
+            <td class="r he-val">${N(grandHE)}</td>
+            <td class="r">${N(grandComm)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function pick(name) {
+  active = name;
+  renderOverview();
+  showTab('detail');
+  renderDetail(name);
+  document.getElementById('detail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+renderOverview();
+renderDetail(active);
+renderSummary();
+</script>
+</body>
+</html>
