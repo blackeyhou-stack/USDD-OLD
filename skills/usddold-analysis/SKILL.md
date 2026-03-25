@@ -22,41 +22,53 @@ description: >
 
 克隆项目后，需在 `update_dashboard.py` 顶部填写以下配置：
 
-### 1. 项目路径
-脚本默认读取同目录下的 `output/` 和 `input/`，无需修改路径。确认目录结构：
-```
-<your-project>/
-├── dashboard.html
-├── fetch_holders.py
-├── update_dashboard.py
-├── input/        ← 放 BSC CSV 导出文件
-└── output/       ← 自动生成，无需手动操作
-```
+### 1. Token 合约地址（fetch_holders.py 第 37–73 行）
 
-### 2. 内部地址（H 地址）
-将需要隐藏身份、打 ⭐H 标记的地址填入 `H_ADDRESSES`：
+打开 `fetch_holders.py`，找到 `CHAINS = {` 这个字典，将每条链的 `contract` 字段替换为你的 Token 合约地址：
+
 ```python
-H_ADDRESSES = {
-    'Tron':     {'T...地址1', 'T...地址2'},
-    'Ethereum': {'0x...地址'},
-    'Arbitrum': {'0x...地址'},
-    # 按实际情况填写，没有则留空 set()
+CHAINS = {
+    'Tron': {
+        'contract': 'T...你的Tron合约地址',   # ← 改这里
+        'type': 'tron',
+        'decimals': 18,
+    },
+    'Ethereum': {
+        'contract': '0x...你的ETH合约地址',   # ← 改这里
+        'type': 'blockscout',
+        'decimals': 18,
+        'base_url': 'https://eth.blockscout.com',
+        'verify_balances': True,
+        'chainid': 1,
+    },
+    'Arbitrum': {
+        'contract': '0x...你的ARB合约地址',   # ← 改这里
+        'type': 'blockscout',
+        'decimals': 18,
+        'base_url': 'https://arbitrum.blockscout.com',
+        'verify_balances': True,
+        'chainid': 42161,
+    },
+    'Polygon': {
+        'contract': '0x...你的Polygon合约地址',  # ← 改这里
+        'type': 'blockscout',
+        'decimals': 18,
+        'base_url': 'https://polygon.blockscout.com',
+        'verify_balances': True,
+        'chainid': 137,
+    },
+    'BSC': {
+        'contract': '0x...你的BSC合约地址',   # ← 改这里
+        'type': 'bsc_csv',
+        'decimals': 18,
+        'csv_input_dir': './input',            # ← 改为相对路径即可
+    },
 }
 ```
 
-### 3. 固定 H 持有量（汇总分析用）
-H 地址的金额在汇总分析中保持固定，不随数据更新变化（防止泄露实时变动）：
-```python
-HE_FIXED = {
-    'Tron':     {'prot': 0,      'eoa': 0},   # ← 填入实际金额
-    'Ethereum': {'prot': 0,      'eoa': 0},
-    'BSC':      {'prot': 0,      'eoa': 0},
-    'Polygon':  {'prot': 0,      'eoa': 0},
-    'Arbitrum': {'prot': 0,      'eoa': 0},
-}
-```
+> Token 的 `decimals` 通常是 18，若不同请一并修改。
 
-### 4. 桥接预铸地址（若有）
+### 2. 桥接预铸地址（若有）
 部分链存在提前铸造的桥接储备地址，其余额需从有效流通量中扣除：
 ```python
 BRIDGE_PREMINT = {
